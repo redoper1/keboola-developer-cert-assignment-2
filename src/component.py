@@ -6,15 +6,15 @@ import csv
 import logging
 from datetime import datetime
 
-from keboola.component.base import ComponentBase, UserException
+from keboola.component.base import ComponentBase
+from keboola.component import UserException
 
 # configuration variables
-KEY_API_TOKEN = '#api_token'
-KEY_PRINT_HELLO = 'print_hello'
+KEY_PRINT_ROWS = 'print_rows'
 
 # list of mandatory parameters => if some is missing,
 # component will fail with readable message on initialization.
-REQUIRED_PARAMETERS = [KEY_PRINT_HELLO]
+REQUIRED_PARAMETERS = [KEY_PRINT_ROWS]
 REQUIRED_IMAGE_PARS = []
 
 
@@ -38,34 +38,46 @@ class Component(ComponentBase):
         Main execution code
         '''
 
-        # ####### EXAMPLE TO REMOVE
         params = self.configuration.parameters
-        # Access parameters in data/config.json
-        if params.get(KEY_PRINT_HELLO):
-            logging.info("Hello World")
+
+        input_table = self.get_input_tables_definitions()
+        input_table_path = input_table[0].full_path
+        logging.info(input_table_path)
 
         # get last state data/in/state.json from previous run
         previous_state = self.get_state_file()
-        logging.info(previous_state.get('some_state_parameter'))
+        logging.info('last_update: ' + previous_state.get('last_update'))
 
         # Create output table (Tabledefinition - just metadata)
-        table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['timestamp'])
+        table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['row_number'])
 
         # get file path of the table (data/out/tables/Features.csv)
         out_table_path = table.full_path
         logging.info(out_table_path)
 
         # DO whatever and save into out_table_path
-        with open(table.full_path, mode='wt', encoding='utf-8', newline='') as out_file:
-            writer = csv.DictWriter(out_file, fieldnames=['timestamp'])
+        with open(input_table_path, "r") as input_file, open(
+            out_table_path, mode="wt", encoding="utf-8", newline=""
+        ) as out_file:
+            reader = csv.DictReader(input_file)
+            new_columns = reader.fieldnames
+            # append row number col
+            new_columns.append('row_number')
+            writer = csv.DictWriter(out_file, fieldnames=new_columns, lineterminator='\n', delimiter=',')
             writer.writeheader()
-            writer.writerow({"timestamp": datetime.now().isoformat()})
+            for index, l in enumerate(reader):
+                # add row number
+                l['row_number'] = index
+                # print line
+                if params.get(KEY_PRINT_ROWS):
+                    logging.info(f'Printing line {index}: {l}')
+                writer.writerow(l)
 
         # Save table manifest (output.csv.manifest) from the tabledefinition
-        self.write_tabledef_manifest(table)
+        self.write_manifest(table)
 
         # Write new state - will be available next run
-        self.write_state_file({"some_state_parameter": "value"})
+        self.write_state_file({"last_update": datetime.now().isoformat()})
 
         # ####### EXAMPLE TO REMOVE END
 
