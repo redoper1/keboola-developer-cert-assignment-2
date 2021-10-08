@@ -9,6 +9,8 @@ from datetime import datetime
 from keboola.component.base import ComponentBase
 from keboola.component import UserException
 
+import os
+
 # configuration variables
 KEY_PRINT_ROWS = 'print_rows'
 
@@ -40,46 +42,49 @@ class Component(ComponentBase):
 
         params = self.configuration.parameters
 
-        input_table = self.get_input_tables_definitions()
-        input_table_path = input_table[0].full_path
-        logging.info(input_table_path)
+        input_tables = self.get_input_tables_definitions()
+        out_tables = self.configuration.tables_output_mapping
+        i = 0
+        for input_table in input_tables:
+            input_table_path = input_table.full_path
 
-        # get last state data/in/state.json from previous run
-        previous_state = self.get_state_file()
-        logging.info('last_update: ' + previous_state.get('last_update'))
+            # get last state data/in/state.json from previous run
+            previous_state = self.get_state_file()
+            logging.info('last_update: ' + previous_state.get('last_update'))
 
-        # Create output table (Tabledefinition - just metadata)
-        table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['row_number'])
+            # Create output table (Tabledefinition - just metadata)
+            # table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['row_number'])
+            table = self.create_out_table_definition(out_tables[i].source, incremental=True, primary_key=['row_number'])
 
-        # get file path of the table (data/out/tables/Features.csv)
-        out_table_path = table.full_path
-        logging.info(out_table_path)
+            # get file path of the table (data/out/tables/Features.csv)
+            # out_table_path = table.full_path
+            out_table_path = os.path.join(self.tables_out_path, out_tables[i].source)
 
-        # DO whatever and save into out_table_path
-        with open(input_table_path, "r") as input_file, open(
-            out_table_path, mode="wt", encoding="utf-8", newline=""
-        ) as out_file:
-            reader = csv.DictReader(input_file)
-            new_columns = reader.fieldnames
-            # append row number col
-            new_columns.append('row_number')
-            writer = csv.DictWriter(out_file, fieldnames=new_columns, lineterminator='\n', delimiter=',')
-            writer.writeheader()
-            for index, l in enumerate(reader):
-                # add row number
-                l['row_number'] = index
-                # print line
-                if params.get(KEY_PRINT_ROWS):
-                    logging.info(f'Printing line {index}: {l}')
-                writer.writerow(l)
+            # DO whatever and save into out_table_path
+            with open(input_table_path, "r") as input_file, open(
+                out_table_path, mode="wt", encoding="utf-8", newline=""
+            ) as out_file:
+                reader = csv.DictReader(input_file)
+                new_columns = reader.fieldnames
+                # append row number col
+                new_columns.append('row_number')
+                writer = csv.DictWriter(out_file, fieldnames=new_columns, lineterminator='\n', delimiter=',')
+                writer.writeheader()
+                for index, l in enumerate(reader):
+                    # add row number
+                    l['row_number'] = index
+                    # print line
+                    if params.get(KEY_PRINT_ROWS):
+                        logging.info(f'Printing line {index}: {l}')
+                    writer.writerow(l)
 
-        # Save table manifest (output.csv.manifest) from the tabledefinition
-        self.write_manifest(table)
+            # Save table manifest (output.csv.manifest) from the tabledefinition
+            self.write_manifest(table)
 
-        # Write new state - will be available next run
-        self.write_state_file({"last_update": datetime.now().isoformat()})
+            # Write new state - will be available next run
+            self.write_state_file({"last_update": datetime.now().isoformat()})
 
-        # ####### EXAMPLE TO REMOVE END
+            i = i + 1
 
 
 """
