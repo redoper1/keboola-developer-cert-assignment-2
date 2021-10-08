@@ -50,7 +50,11 @@ class Component(ComponentBase):
 
             # get last state data/in/state.json from previous run
             previous_state = self.get_state_file()
-            logging.info('last_update: ' + previous_state.get('last_update'))
+            last_update = previous_state.get('last_update')
+            if last_update is not None:
+                logging.info('last_update: ' + last_update)
+            else:
+                logging.info('last_update: None')
 
             # Create output table (Tabledefinition - just metadata)
             # table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['row_number'])
