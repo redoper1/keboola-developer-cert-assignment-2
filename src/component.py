@@ -43,8 +43,6 @@ class Component(ComponentBase):
         params = self.configuration.parameters
 
         input_tables = self.get_input_tables_definitions()
-        out_tables = self.configuration.tables_output_mapping
-        i = 0
         for input_table in input_tables:
             input_table_path = input_table.full_path
 
@@ -57,12 +55,10 @@ class Component(ComponentBase):
                 logging.info('last_update: None')
 
             # Create output table (Tabledefinition - just metadata)
-            # table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['row_number'])
-            table = self.create_out_table_definition(out_tables[i].source, incremental=True, primary_key=['row_number'])
+            table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['row_number'])
 
             # get file path of the table (data/out/tables/Features.csv)
-            # out_table_path = table.full_path
-            out_table_path = os.path.join(self.tables_out_path, out_tables[i].source)
+            out_table_path = table.full_path
 
             # DO whatever and save into out_table_path
             with open(input_table_path, "r") as input_file, open(
@@ -87,8 +83,6 @@ class Component(ComponentBase):
 
             # Write new state - will be available next run
             self.write_state_file({"last_update": datetime.now().isoformat()})
-
-            i = i + 1
 
 
 """
