@@ -9,8 +9,6 @@ from datetime import datetime
 from keboola.component.base import ComponentBase
 from keboola.component import UserException
 
-import os
-
 # configuration variables
 KEY_PRINT_ROWS = 'print_rows'
 
